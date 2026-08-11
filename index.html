@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GeoHistory — Daily History Geography Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --parchment: #efe6d3;
+    --parchment-deep: #e2d5b8;
+    --ink: #24304a;
+    --ink-soft: #4a5975;
+    --gold: #b8863b;
+    --gold-bright: #d4a24e;
+    --guess: #d4553c;
+    --actual: #3fae76;
+    --paper-shadow: rgba(36,48,74,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(184,134,59,0.10), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(36,48,74,0.08), transparent 55%),
+      var(--parchment);
+    font-family:'Spectral', serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .compass{width:46px;height:46px;flex:0 0 auto;}
+  .brand h1{
+    font-family:'Playfair Display', serif;
+    font-weight:900;
+    font-size:clamp(28px,4vw,38px);
+    margin:0;
+    letter-spacing:0.5px;
+  }
+  .brand .sub{
+    font-family:'Courier Prime', monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-top:2px;
+  }
+  .streak{
+    font-family:'Courier Prime', monospace;
+    font-size:12px;
+    letter-spacing:1px;
+    text-align:right;
+    color:var(--ink-soft);
+  }
+  .streak b{color:var(--ink); font-size:20px; display:block; font-family:'Playfair Display',serif;}
+
+  .progress{display:flex; gap:8px; margin:0 0 14px; justify-content:center;}
+  .dot{width:9px; height:9px; border-radius:50%; border:1.5px solid var(--ink); background:transparent;}
+  .dot.done{background:var(--ink);}
+  .dot.active{background:var(--gold-bright); border-color:var(--gold-bright);}
+
+  .clue-card{
+    background:linear-gradient(180deg, #f7f0dd, var(--parchment-deep));
+    border:1px solid #8d7a52;
+    border-radius:2px;
+    box-shadow:0 10px 24px var(--paper-shadow);
+    padding:22px 24px;
+    margin-bottom:18px;
+    position:relative;
+  }
+  .clue-card::before{content:'';position:absolute;inset:6px;border:1px solid rgba(36,48,74,0.15);pointer-events:none;}
+  .clue-meta{display:flex; justify-content:space-between; align-items:baseline; font-family:'Courier Prime', monospace; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold); margin-bottom:10px;}
+  .clue-numeral{font-family:'Playfair Display', serif; font-style:italic; font-weight:700; font-size:15px; color:var(--ink);}
+  .clue-text{font-size:19px; line-height:1.55; color:var(--ink);}
+  .clue-text .year{color:var(--gold); font-weight:600;}
+  .instruction{margin-top:10px; font-family:'Courier Prime', monospace; font-size:12px; color:var(--ink-soft); letter-spacing:0.5px;}
+
+  /* Globe */
+  .globe-frame{
+    position:relative;
+    border:1px solid #8d7a52;
+    box-shadow:0 10px 24px var(--paper-shadow);
+    border-radius:6px;
+    overflow:hidden;
+    background:radial-gradient(circle at 50% 40%, #0b1424, #05070d 75%);
+    aspect-ratio: 4 / 3;
+    touch-action:none;
+    cursor:grab;
+  }
+  .globe-frame.dragging{cursor:grabbing;}
+  .globe-frame canvas{display:block; width:100%; height:100%; filter: saturate(0.5) contrast(1.04) brightness(0.98);}
+
+  .globe-hint{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:8px 14px;
+    font-family:'Courier Prime', monospace;
+    font-size:10.5px;
+    letter-spacing:0.8px;
+    color:rgba(239,230,211,0.75);
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,0.55));
+    text-align:center;
+    pointer-events:none;
+  }
+  .globe-legend{
+    position:absolute; top:10px; right:12px;
+    display:flex; flex-direction:column; gap:5px;
+    font-family:'Courier Prime', monospace;
+    font-size:10px;
+    color:rgba(239,230,211,0.85);
+    pointer-events:none;
+    text-align:right;
+  }
+  .globe-legend span{display:inline-flex; align-items:center; gap:5px; justify-content:flex-end;}
+  .swatch{width:8px;height:8px;border-radius:50%; display:inline-block;}
+
+  .loading-overlay{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    background:#05070d;
+    color:rgba(239,230,211,0.85);
+    font-family:'Courier Prime', monospace;
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    transition:opacity 0.4s ease;
+    z-index:5;
+  }
+  .loading-overlay.hidden{opacity:0; pointer-events:none;}
+  .spinner{
+    width:34px; height:34px;
+    border-radius:50%;
+    border:2px solid rgba(212,162,78,0.25);
+    border-top-color: var(--gold-bright);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .map-caption{font-family:'Courier Prime', monospace; font-size:11px; color:var(--ink-soft); text-align:center; padding:8px 4px 0; letter-spacing:0.5px;}
+
+  .result-panel{display:none; background:var(--ink); color:var(--parchment); padding:20px 24px; margin-top:16px; border-radius:2px; box-shadow:0 10px 24px var(--paper-shadow);}
+  .result-panel.show{display:block;}
+  .result-top{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
+  .result-score{font-family:'Playfair Display', serif; font-weight:900; font-size:36px; color:var(--gold-bright);}
+  .result-score .of{font-size:16px; color:var(--parchment); opacity:0.7; font-family:'Courier Prime',monospace;}
+  .result-distance{font-family:'Courier Prime', monospace; font-size:13px; letter-spacing:0.5px; color:var(--parchment); opacity:0.85;}
+  .result-place{font-family:'Playfair Display', serif; font-style:italic; font-size:20px; margin:6px 0 10px; color:var(--parchment);}
+  .result-explain{font-size:15px; line-height:1.6; color:var(--parchment); opacity:0.92; border-top:1px solid rgba(239,230,211,0.25); padding-top:12px;}
+
+  button.next-btn{margin-top:16px; font-family:'Courier Prime', monospace; letter-spacing:1px; text-transform:uppercase; font-size:13px; background:var(--gold-bright); color:var(--ink); border:none; padding:11px 20px; cursor:pointer; border-radius:1px; font-weight:700;}
+  button.next-btn:hover{background:var(--gold);}
+  button.next-btn:disabled{opacity:0.5; cursor:default;}
+
+  .final{display:none; text-align:center; background:linear-gradient(180deg, #f7f0dd, var(--parchment-deep)); border:1px solid #8d7a52; box-shadow:0 10px 24px var(--paper-shadow); padding:36px 24px; border-radius:2px;}
+  .final.show{display:block;}
+  .final h2{font-family:'Playfair Display', serif; font-weight:900; font-size:30px; margin:0 0 6px;}
+  .final .final-sub{font-family:'Courier Prime', monospace; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:22px;}
+  .final-total{font-family:'Playfair Display', serif; font-weight:900; font-size:56px; color:var(--ink); line-height:1;}
+  .final-total .of{font-size:20px; font-family:'Courier Prime',monospace; color:var(--ink-soft); font-weight:400;}
+  .final-emoji{font-size:26px; letter-spacing:6px; margin:14px 0 22px;}
+  .final-table{width:100%; border-collapse:collapse; font-family:'Courier Prime', monospace; font-size:13px; text-align:left; margin-bottom:22px;}
+  .final-table th, .final-table td{border-bottom:1px solid rgba(36,48,74,0.2); padding:8px 6px;}
+  .final-table th{text-transform:uppercase; letter-spacing:1px; font-size:11px; color:var(--ink-soft);}
+  .share-box{font-family:'Courier Prime', monospace; background:var(--ink); color:var(--parchment); padding:14px; font-size:13px; white-space:pre-wrap; text-align:left; border-radius:2px; margin-bottom:18px; line-height:1.6;}
+  .btn-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  button.secondary-btn{font-family:'Courier Prime', monospace; letter-spacing:1px; text-transform:uppercase; font-size:13px; background:transparent; color:var(--ink); border:1.5px solid var(--ink); padding:10px 18px; cursor:pointer; border-radius:1px; font-weight:700;}
+  button.secondary-btn:hover{background:var(--ink); color:var(--parchment);}
+
+  footer{text-align:center; font-family:'Courier Prime', monospace; font-size:11px; color:var(--ink-soft); margin-top:30px; letter-spacing:0.5px;}
+
+  @media (max-width:600px){
+    .clue-text{font-size:17px;}
+    .result-score{font-size:28px;}
+    .final-total{font-size:44px;}
+    .globe-frame{aspect-ratio: 1 / 1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#24304a" stroke-width="2"/>
+        <circle cx="50" cy="50" r="3" fill="#b8863b"/>
+        <path d="M50 8 L58 50 L50 92 L42 50 Z" fill="#24304a"/>
+        <path d="M8 50 L50 42 L92 50 L50 58 Z" fill="#b8863b" opacity="0.85"/>
+        <text x="50" y="20" text-anchor="middle" font-family="Courier Prime, monospace" font-size="9" fill="#24304a">N</text>
+      </svg>
+      <div>
+        <h1>GeoHistory</h1>
+        <div class="sub">Five clues · one globe · no second guesses</div>
+      </div>
+    </div>
+    <div class="streak">Today's Round<b id="roundLabel">I – V</b></div>
+  </header>
+
+  <div class="progress" id="progress"></div>
+
+  <div class="clue-card" id="clueCard">
+    <div class="clue-meta">
+      <span class="clue-numeral" id="clueNumeral">Clue I</span>
+      <span id="clueMultiplier">×1 SCORING</span>
+    </div>
+    <div class="clue-text" id="clueText">Loading…</div>
+    <div class="instruction" id="instruction">Spin the globe, then tap the spot where you think this happened.</div>
+  </div>
+
+  <div class="globe-frame" id="globeFrame">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div>Fetching satellite imagery…</div>
+    </div>
+    <div class="globe-legend">
+      <span><span class="swatch" style="background:var(--guess)"></span>your guess</span>
+      <span><span class="swatch" style="background:var(--actual)"></span>true location</span>
+    </div>
+    <div class="globe-hint">DRAG TO ROTATE · SCROLL / PINCH TO ZOOM · TAP TO PLACE PIN</div>
+  </div>
+  <div class="map-caption">Live-shaded satellite globe — real coastlines &amp; terrain</div>
+
+  <div class="result-panel" id="resultPanel">
+    <div class="result-top">
+      <div class="result-score" id="resultScore">0 <span class="of">/ 100</span></div>
+      <div class="result-distance" id="resultDistance">— km from target</div>
+    </div>
+    <div class="result-place" id="resultPlace"></div>
+    <div class="result-explain" id="resultExplain"></div>
+    <button class="next-btn" id="nextBtn">Next Clue →</button>
+  </div>
+
+  <div class="final" id="finalPanel">
+    <h2>Round Complete</h2>
+    <div class="final-sub">Your history &amp; geography verdict</div>
+    <div class="final-total"><span id="finalTotal">0</span><span class="of"> / <span id="finalMax">0</span></span></div>
+    <div class="final-emoji" id="finalEmoji"></div>
+    <table class="final-table">
+      <thead><tr><th>Clue</th><th>Event</th><th>Score</th><th>Distance</th></tr></thead>
+      <tbody id="finalTableBody"></tbody>
+    </table>
+    <div class="share-box" id="shareBox"></div>
+    <div class="btn-row">
+      <button class="secondary-btn" id="copyBtn">Copy Result</button>
+      <button class="secondary-btn" id="playAgainBtn">Play Again</button>
+    </div>
+  </div>
+
+  <footer>GeoHistory is a fan-made prototype in the style of MapTap &amp; GeoSports — built for history buffs, not (yet) an official daily release. Earth imagery courtesy of NASA / three.js example assets.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // Question bank
+  // ============================================================
+  const QUESTIONS = [
+    {
+      numeral: "I",
+      multiplier: 1,
+      text: `Colonists boarded three ships in this harbor in <span class="year">1773</span> and dumped an entire shipment of taxed tea into the water to protest "taxation without representation."`,
+      place: "Boston, Massachusetts, USA",
+      lat: 42.3554, lon: -71.0537,
+      explain: `The Boston Tea Party was a protest against the British East India Company's tea monopoly and the taxes imposed without colonial consent. Britain's harsh response, the "Intolerable Acts," pushed the American colonies further toward open rebellion and, eventually, revolution.`
+    },
+    {
+      numeral: "II",
+      multiplier: 1,
+      text: `A coalition of European armies delivered a final, decisive defeat to a French emperor near this town in <span class="year">1815</span>, ending his brief return to power.`,
+      place: "Waterloo, Belgium",
+      lat: 50.6801, lon: 4.4114,
+      explain: `Napoleon Bonaparte had escaped exile on Elba and returned to power for roughly a hundred days before British, Dutch, and Prussian forces under Wellington and Blücher defeated him at Waterloo. He was exiled again, this time to the remote island of Saint Helena, where he died in 1821.`
+    },
+    {
+      numeral: "III",
+      multiplier: 1.5,
+      text: `The assassination of an Archduke and his wife on the streets of this city in <span class="year">1914</span> set off the chain of alliances that dragged Europe into the First World War.`,
+      place: "Sarajevo (Bosnia and Herzegovina)",
+      lat: 43.8563, lon: 18.4131,
+      explain: `Archduke Franz Ferdinand of Austria-Hungary was shot alongside his wife Sophie by Gavrilo Princip, a Bosnian Serb nationalist, on June 28, 1914. Within weeks, a web of European treaty obligations escalated the crisis into a continent-wide, and eventually global, war.`
+    },
+    {
+      numeral: "IV",
+      multiplier: 2,
+      text: `In the pre-dawn desert darkness of <span class="year">1945</span>, scientists detonated the first nuclear weapon in history at a remote test site, ushering in the atomic age weeks before it was used in combat.`,
+      place: "Alamogordo, New Mexico, USA (the Trinity test site)",
+      lat: 33.6891, lon: -106.4756,
+      explain: `The Trinity test was the culmination of the Manhattan Project, the secret Allied effort to build an atomic bomb. Physicist J. Robert Oppenheimer led the scientific team, and the successful detonation on July 16, 1945 confirmed the weapon's design just weeks before atomic bombs were dropped on Hiroshima and Nagasaki.`
+    },
+    {
+      numeral: "V",
+      multiplier: 3,
+      text: `A sudden volcanic eruption in <span class="year">79 AD</span> buried this Roman city under meters of ash and pumice, preserving its streets, homes, and even the plaster casts of its final residents for nearly two thousand years.`,
+      place: "Pompeii, Italy",
+      lat: 40.7462, lon: 14.4989,
+      explain: `Mount Vesuvius erupted with such speed and force that many residents of Pompeii and nearby Herculaneum were unable to escape. The ash that entombed the city also perfectly preserved it, giving archaeologists an extraordinarily detailed snapshot of daily life in the Roman Empire.`
+    }
+  ];
+
+  const MAX_SCORE = QUESTIONS.reduce((sum, q) => sum + 100 * q.multiplier, 0);
+
+  // ============================================================
+  // Geographic helpers — must match the Three.js SphereGeometry
+  // UV convention used with this earth texture:
+  //   phi   = (90 - lat) * PI/180      (polar angle from north pole)
+  //   theta = (lon + 180) * PI/180     (azimuth)
+  //   x = -r * sin(phi) * cos(theta)
+  //   z =  r * sin(phi) * sin(theta)
+  //   y =  r * cos(phi)
+  // ============================================================
+  function latLonToVector3(lat, lon, r){
+    const phi = (90 - lat) * Math.PI / 180;
+    const theta = (lon + 180) * Math.PI / 180;
+    const x = -r * Math.sin(phi) * Math.cos(theta);
+    const z =  r * Math.sin(phi) * Math.sin(theta);
+    const y =  r * Math.cos(phi);
+    return new THREE.Vector3(x, y, z);
+  }
+  function vector3ToLatLon(v, r){
+    const rr = r || v.length();
+    let phi = Math.acos(Math.max(-1, Math.min(1, v.y / rr)));
+    let lat = 90 - phi * 180 / Math.PI;
+    let theta = Math.atan2(v.z, -v.x);
+    let lonRad = theta - Math.PI;
+    if(lonRad < -Math.PI) lonRad += 2*Math.PI;
+    if(lonRad > Math.PI) lonRad -= 2*Math.PI;
+    let lon = lonRad * 180 / Math.PI;
+    return { lat, lon };
+  }
+  function haversineKm(lat1, lon1, lat2, lon2){
+    const R = 6371;
+    const dLat = (lat2-lat1) * Math.PI/180;
+    const dLon = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R*c;
+  }
+  function scoreFromDistance(km){
+    const s = 100 * Math.exp(-km / 1800);
+    return Math.max(0, Math.round(s));
+  }
+  function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
+  function easeInOutQuad(t){ return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+
+  // ============================================================
+  // Three.js scene
+  // ============================================================
+  const RADIUS = 5;
+  const frame = document.getElementById('globeFrame');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 4/3, 0.1, 1000);
+  camera.position.set(0, 0, 13);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  frame.insertBefore(renderer.domElement, loadingOverlay);
+
+  function resizeRenderer(){
+    const w = frame.clientWidth, h = frame.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resizeRenderer);
+
+  // starfield
+  (function addStars(){
+    const starGeo = new THREE.BufferGeometry();
+    const count = 900;
+    const positions = new Float32Array(count*3);
+    for(let i=0;i<count;i++){
+      const r = 60 + Math.random()*140;
+      const theta = Math.random()*Math.PI*2;
+      const phi = Math.acos((Math.random()*2)-1);
+      positions[i*3] = r*Math.sin(phi)*Math.cos(theta);
+      positions[i*3+1] = r*Math.sin(phi)*Math.sin(theta);
+      positions[i*3+2] = r*Math.cos(phi);
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.35, sizeAttenuation:true, transparent:true, opacity:0.55 });
+    scene.add(new THREE.Points(starGeo, starMat));
+  })();
+
+  const globeGroup = new THREE.Group();
+  scene.add(globeGroup);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xfff3e0, 1.15);
+  sun.position.set(6, 3, 8);
+  scene.add(sun);
+  const rim = new THREE.DirectionalLight(0x88aaff, 0.25);
+  rim.position.set(-8, -2, -6);
+  scene.add(rim);
+
+  let earthMesh;
+  const markersGroup = new THREE.Group();
+
+  const loader = new THREE.TextureLoader();
+  loader.crossOrigin = "anonymous";
+  const TEX_BASE = "https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/";
+  let texturesLoaded = 0;
+  const texturesNeeded = 3;
+  function textureReady(){
+    texturesLoaded++;
+    if(texturesLoaded >= texturesNeeded){
+      loadingOverlay.classList.add('hidden');
+    }
+  }
+
+  const earthMap = loader.load(TEX_BASE + "earth_atmos_2048.jpg", textureReady, undefined, textureReady);
+  const earthSpec = loader.load(TEX_BASE + "earth_specular_2048.jpg", textureReady, undefined, textureReady);
+  const earthNormal = loader.load(TEX_BASE + "earth_normal_2048.jpg", textureReady, undefined, textureReady);
+
+  const earthGeo = new THREE.SphereGeometry(RADIUS, 96, 96);
+  const earthMat = new THREE.MeshPhongMaterial({
+    map: earthMap,
+    specularMap: earthSpec,
+    specular: new THREE.Color(0x333333),
+    shininess: 8,
+    normalMap: earthNormal,
+    normalScale: new THREE.Vector2(0.6, 0.6)
+  });
+  earthMesh = new THREE.Mesh(earthGeo, earthMat);
+  globeGroup.add(earthMesh);
+
+  // faint atmosphere glow
+  const glowGeo = new THREE.SphereGeometry(RADIUS * 1.035, 48, 48);
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x6fa8ff, transparent: true, opacity: 0.10, side: THREE.BackSide });
+  globeGroup.add(new THREE.Mesh(glowGeo, glowMat));
+
+  globeGroup.add(markersGroup);
+
+  // start facing a pleasant default (Atlantic-ish view)
+  globeGroup.rotation.y = -0.6;
+  globeGroup.rotation.x = 0.15;
+
+  // ============================================================
+  // Pointer controls: 1-finger rotate, 2-finger pinch zoom, tap = guess
+  // ============================================================
+  const pointers = new Map();
+  let dragMoved = 0;
+  let lastPinchDist = null;
+  let camDist = 13;
+  const CAM_MIN = 7.5, CAM_MAX = 22;
+  let tiltX = 0.15;
+
+  function applyCamDist(){ camera.position.z = camDist; }
+  applyCamDist();
+
+  function onPointerDown(e){
+    frame.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX:e.clientX, startY:e.clientY });
+    dragMoved = 0;
+    frame.classList.add('dragging');
+  }
+  function onPointerMove(e){
+    if(!pointers.has(e.pointerId)) return;
+    const p = pointers.get(e.pointerId);
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+
+    if(pointers.size === 2){
+      const pts = Array.from(pointers.values());
+      const dist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      if(lastPinchDist !== null){
+        const delta = dist - lastPinchDist;
+        camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist - delta * 0.04));
+        applyCamDist();
+      }
+      lastPinchDist = dist;
+    } else if(pointers.size === 1){
+      globeGroup.rotation.y += dx * 0.005;
+      tiltX = Math.max(-1.0, Math.min(1.0, tiltX + dy * 0.005));
+      globeGroup.rotation.x = tiltX;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+    }
+  }
+  function onPointerUp(e){
+    const wasTap = pointers.has(e.pointerId) && dragMoved < 6 && pointers.size === 1;
+    if(pointers.has(e.pointerId)) pointers.delete(e.pointerId);
+    lastPinchDist = pointers.size === 2 ? lastPinchDist : null;
+    if(pointers.size === 0) frame.classList.remove('dragging');
+    if(wasTap){
+      handleTap(e.clientX, e.clientY);
+    }
+  }
+  frame.addEventListener('pointerdown', onPointerDown);
+  frame.addEventListener('pointermove', onPointerMove);
+  frame.addEventListener('pointerup', onPointerUp);
+  frame.addEventListener('pointercancel', onPointerUp);
+  frame.addEventListener('wheel', function(e){
+    e.preventDefault();
+    camDist = Math.max(CAM_MIN, Math.min(CAM_MAX, camDist + e.deltaY * 0.012));
+    applyCamDist();
+  }, { passive:false });
+
+  // ============================================================
+  // Raycasting: tap -> lat/lon on the (unrotated-local) earth mesh
+  // ============================================================
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+
+  function handleTap(clientX, clientY){
+    if(!awaitingClick) return;
+    const rect = frame.getBoundingClientRect();
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObject(earthMesh, false);
+    if(hits.length === 0) return;
+    const worldPoint = hits[0].point.clone();
+    const localPoint = earthMesh.worldToLocal(worldPoint.clone());
+    const { lat, lon } = vector3ToLatLon(localPoint, RADIUS);
+    registerGuess(lat, lon);
+  }
+
+  // ============================================================
+  // Marker + animation helpers (all markers live in markersGroup,
+  // a child of globeGroup, so they rotate together with the earth)
+  // ============================================================
+  function makePin(color){
+    const g = new THREE.Group();
+    const coreGeo = new THREE.SphereGeometry(0.09, 16, 16);
+    const coreMat = new THREE.MeshBasicMaterial({ color });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    g.add(core);
+
+    const stemGeo = new THREE.ConeGeometry(0.045, 0.28, 12);
+    const stemMat = new THREE.MeshBasicMaterial({ color });
+    const stem = new THREE.Mesh(stemGeo, stemMat);
+    stem.position.set(0, -0.17, 0);
+    stem.rotation.x = Math.PI;
+    g.add(stem);
+
+    return g;
+  }
+
+  function orientToSurface(obj, posOnSphere){
+    obj.position.copy(posOnSphere);
+    const normal = posOnSphere.clone().normalize();
+    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), normal);
+    obj.setRotationFromQuaternion(quat);
+  }
+
+  const activeTweens = [];
+  function addTween(fn, duration, onDone){
+    const start = performance.now();
+    activeTweens.push({ fn, start, duration, onDone, done:false });
+  }
+
+  function dropInPin(lat, lon, color){
+    const pos = latLonToVector3(lat, lon, RADIUS + 0.01);
+    const pin = makePin(color);
+    orientToSurface(pin, pos);
+    pin.scale.set(0.001,0.001,0.001);
+    markersGroup.add(pin);
+    addTween((t)=>{
+      const e = easeOutCubic(Math.min(1, t*1.6));
+      const overshoot = t < 0.6 ? 1 + 0.35*Math.sin(t*Math.PI/0.6) : 1;
+      const s = e * overshoot;
+      pin.scale.set(s,s,s);
+    }, 550);
+    return pin;
+  }
+
+  function pulseRing(lat, lon, color){
+    const pos = latLonToVector3(lat, lon, RADIUS + 0.015);
+    const ringGeo = new THREE.RingGeometry(0.01, 0.05, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.9, side:THREE.DoubleSide, depthWrite:false });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    orientToSurface(ring, pos);
+    markersGroup.add(ring);
+
+    let cycles = 0;
+    const maxCycles = 3;
+    addTween((t)=>{
+      const local = t % (1/maxCycles) * maxCycles;
+      const e = easeOutCubic(local);
+      const scale = 0.4 + e * 5.5;
+      ring.scale.set(scale, scale, scale);
+      ring.material.opacity = 0.85 * (1 - e);
+    }, 1500, ()=>{ markersGroup.remove(ring); ring.geometry.dispose(); ring.material.dispose(); });
+  }
+
+  function drawArc(latA, lonA, latB, lonB, color){
+    const a = latLonToVector3(latA, lonA, RADIUS).normalize();
+    const b = latLonToVector3(latB, lonB, RADIUS).normalize();
+    const angle = a.angleTo(b);
+    const segments = 64;
+    const bulge = 1 + Math.min(0.35, angle * 0.14);
+    const points = [];
+    for(let i=0;i<=segments;i++){
+      const t = i/segments;
+      const sinTotal = Math.sin(angle) || 1e-6;
+      const w1 = Math.sin((1-t)*angle)/sinTotal;
+      const w2 = Math.sin(t*angle)/sinTotal;
+      const p = new THREE.Vector3(
+        a.x*w1 + b.x*w2,
+        a.y*w1 + b.y*w2,
+        a.z*w1 + b.z*w2
+      );
+      const lift = Math.sin(t*Math.PI) * (RADIUS * (bulge-1));
+      p.normalize().multiplyScalar(RADIUS + 0.02 + lift);
+      points.push(p);
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({ color, transparent:true, opacity:0.85 });
+    const line = new THREE.Line(geo, mat);
+    markersGroup.add(line);
+
+    // animate draw-in by revealing points progressively via drawRange
+    geo.setDrawRange(0, 0);
+    addTween((t)=>{
+      const e = easeInOutQuad(Math.min(1,t*1.3));
+      geo.setDrawRange(0, Math.round(e * (segments+1)));
+    }, 700);
+
+    return line;
+  }
+
+  function clearMarkers(){
+    while(markersGroup.children.length){
+      const m = markersGroup.children.pop();
+      if(m.geometry) m.geometry.dispose();
+      if(m.material) m.material.dispose();
+    }
+  }
+
+  // Smoothly rotate the globe so a given lat/lon faces the camera
+  function focusOn(lat, lon, duration){
+    // We want the point's local vector, after rotation, to point toward +z (camera direction, ignoring tilt)
+    // theta(lon) controls rotation.y; approximate tilt from lat controls rotation.x
+    const targetY = -((lon) * Math.PI/180) - Math.PI/2;
+    const targetX = Math.max(-0.9, Math.min(0.9, (lat) * Math.PI/180 * 0.6));
+    const startY = globeGroup.rotation.y, startX = globeGroup.rotation.x;
+    // normalize angle delta to shortest path
+    let dY = ((targetY - startY + Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI;
+    addTween((t)=>{
+      const e = easeInOutQuad(Math.min(1,t));
+      globeGroup.rotation.y = startY + dY * e;
+      globeGroup.rotation.x = startX + (targetX - startX) * e;
+      tiltX = globeGroup.rotation.x;
+    }, duration || 1100);
+  }
+
+  // ============================================================
+  // Game state / flow
+  // ============================================================
+  let idx = 0;
+  let results = [];
+  let awaitingClick = true;
+
+  const clueNumeral = document.getElementById('clueNumeral');
+  const clueMultiplier = document.getElementById('clueMultiplier');
+  const clueText = document.getElementById('clueText');
+  const instruction = document.getElementById('instruction');
+  const resultPanel = document.getElementById('resultPanel');
+  const resultScore = document.getElementById('resultScore');
+  const resultDistance = document.getElementById('resultDistance');
+  const resultPlace = document.getElementById('resultPlace');
+  const resultExplain = document.getElementById('resultExplain');
+  const nextBtn = document.getElementById('nextBtn');
+  const progress = document.getElementById('progress');
+  const finalPanel = document.getElementById('finalPanel');
+  const clueCard = document.getElementById('clueCard');
+  const globeFrameEl = document.getElementById('globeFrame');
+  const roundLabel = document.getElementById('roundLabel');
+
+  function buildProgress(){
+    progress.innerHTML = '';
+    QUESTIONS.forEach((q,i) => {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < idx ? ' done' : (i===idx ? ' active':''));
+      progress.appendChild(d);
+    });
+  }
+
+  function loadQuestion(){
+    awaitingClick = true;
+    nextBtn.disabled = false;
+    resultPanel.classList.remove('show');
+    clearMarkers();
+    const q = QUESTIONS[idx];
+    clueNumeral.textContent = 'Clue ' + q.numeral;
+    clueMultiplier.textContent = '×' + q.multiplier + ' SCORING';
+    clueText.innerHTML = q.text;
+    instruction.textContent = 'Spin the globe, then tap the spot where you think this happened.';
+    buildProgress();
+  }
+
+  function registerGuess(lat, lon){
+    awaitingClick = false;
+    const q = QUESTIONS[idx];
+    const dist = haversineKm(lat, lon, q.lat, q.lon);
+    const rawScore = scoreFromDistance(dist);
+    const finalScoreForQ = Math.round(rawScore * q.multiplier);
+    results.push({ score: finalScoreForQ, rawScore, distance: dist, place: q.place });
+
+    dropInPin(lat, lon, 0xd4553c);
+    instruction.textContent = 'Revealing the true location…';
+
+    // brief pause so the guess pin registers visually, then reveal
+    setTimeout(()=>{
+      dropInPin(q.lat, q.lon, 0x3fae76);
+      pulseRing(q.lat, q.lon, 0x3fae76);
+      drawArc(lat, lon, q.lat, q.lon, 0xf4e6c8);
+      const midLat = (lat + q.lat)/2, midLon = (lon + q.lon)/2;
+      focusOn(midLat, midLon, 1200);
+
+      resultScore.innerHTML = finalScoreForQ + ' <span class="of">/ ' + Math.round(100*q.multiplier) + '</span>';
+      resultDistance.textContent = Math.round(dist).toLocaleString() + ' km from target';
+      resultPlace.textContent = q.place;
+      resultExplain.textContent = q.explain;
+      resultPanel.classList.add('show');
+      instruction.textContent = 'Answer locked in — review the result below.';
+    }, 450);
+  }
+
+  nextBtn.addEventListener('click', function(){
+    idx++;
+    if(idx >= QUESTIONS.length){
+      showFinal();
+    } else {
+      loadQuestion();
+    }
+  });
+
+  function emojiForScore(pct){
+    if(pct >= 90) return '🏆';
+    if(pct >= 70) return '🟢';
+    if(pct >= 45) return '🟡';
+    if(pct >= 20) return '🟠';
+    return '🔴';
+  }
+
+  function ordinal(n){
+    const s = ["th","st","nd","rd"];
+    const v = n % 100;
+    return n + (s[(v-20)%10] || s[v] || s[0]);
+  }
+
+  function flavorLine(pct){
+    if(pct >= 90) return "Flawless run through history.";
+    if(pct >= 70) return "Solid history run today.";
+    if(pct >= 45) return "Decent showing — a few close calls.";
+    if(pct >= 20) return "History humbled me today.";
+    return "Rough round — back to the books.";
+  }
+
+  function showFinal(){
+    clueCard.style.display = 'none';
+    globeFrameEl.style.display = 'none';
+    document.querySelector('.map-caption').style.display = 'none';
+    resultPanel.classList.remove('show');
+    progress.style.display = 'none';
+
+    const total = results.reduce((s,r)=>s+r.score,0);
+    document.getElementById('finalTotal').textContent = total;
+    document.getElementById('finalMax').textContent = Math.round(MAX_SCORE);
+
+    let emojiLine = '';
+    const tbody = document.getElementById('finalTableBody');
+    tbody.innerHTML = '';
+    QUESTIONS.forEach((q,i)=>{
+      const r = results[i];
+      emojiLine += emojiForScore(r.rawScore) + ' ';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + q.numeral + '</td><td>' + q.place + '</td><td>' + r.score + '/' + Math.round(100*q.multiplier) + '</td><td>' + Math.round(r.distance).toLocaleString() + ' km</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('finalEmoji').textContent = emojiLine.trim();
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'long' }) + ' ' + ordinal(today.getDate());
+    const maxRounded = Math.round(MAX_SCORE);
+    const overallPct = (total / maxRounded) * 100;
+
+    const shareLines = [
+      `GeoHistory · ${dateStr}`,
+      `${total.toLocaleString()} / ${maxRounded.toLocaleString()}`,
+      emojiLine.trim(),
+      'geohistory.app',
+      flavorLine(overallPct)
+    ];
+    const shareText = shareLines.join('\n');
+    document.getElementById('shareBox').textContent = shareText;
+    window.__shareText = shareText;
+
+    finalPanel.classList.add('show');
+  }
+
+  const copyBtn = document.getElementById('copyBtn');
+  copyBtn.addEventListener('click', function(){
+    const text = window.__shareText || '';
+    if(!text) return;
+
+    function showCopied(){
+      const original = copyBtn.textContent;
+      copyBtn.textContent = 'Copied ✓';
+      setTimeout(()=>{ copyBtn.textContent = original; }, 1600);
+    }
+
+    if(navigator.share){
+      navigator.share({ text }).catch(()=>{});
+      return;
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(showCopied).catch(()=>{
+        fallbackCopy(text, showCopied);
+      });
+    } else {
+      fallbackCopy(text, showCopied);
+    }
+  });
+
+  function fallbackCopy(text, onDone){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    if(onDone) onDone();
+  }
+
+  document.getElementById('playAgainBtn').addEventListener('click', function(){
+    idx = 0; results = [];
+    finalPanel.classList.remove('show');
+    clueCard.style.display = '';
+    globeFrameEl.style.display = '';
+    document.querySelector('.map-caption').style.display = '';
+    progress.style.display = '';
+    clearMarkers();
+    loadQuestion();
+  });
+
+  roundLabel.textContent = 'I – ' + QUESTIONS[QUESTIONS.length-1].numeral;
+
+  // ============================================================
+  // Render loop
+  // ============================================================
+  let lastFrame = performance.now();
+  function animate(now){
+    requestAnimationFrame(animate);
+    const dt = now - lastFrame;
+    lastFrame = now;
+
+    for(let i = activeTweens.length - 1; i >= 0; i--){
+      const tw = activeTweens[i];
+      const t = (now - tw.start) / tw.duration;
+      tw.fn(Math.min(t, 1.0001));
+      if(t >= 1){
+        activeTweens.splice(i,1);
+        if(tw.onDone) tw.onDone();
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+  resizeRenderer();
+  requestAnimationFrame(animate);
+  loadQuestion();
+})();
+</script>
+</body>
+</html>
