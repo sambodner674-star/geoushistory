@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GeoHistory USA — Daily History Geography Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,600&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --parchment: #efe6d3;
+    --parchment-deep: #e2d5b8;
+    --ink: #24304a;
+    --ink-soft: #4a5975;
+    --gold: #b8863b;
+    --gold-bright: #d4a24e;
+    --guess: #d4553c;
+    --actual: #3fae76;
+    --paper-shadow: rgba(36,48,74,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(184,134,59,0.10), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(36,48,74,0.08), transparent 55%),
+      var(--parchment);
+    font-family:'Spectral', serif;
+    color:var(--ink);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  header{display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px; gap:16px; flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:14px;}
+  .compass{width:46px;height:46px;flex:0 0 auto;}
+  .brand h1{font-family:'Playfair Display', serif; font-weight:900; font-size:clamp(28px,4vw,38px); margin:0; letter-spacing:0.5px;}
+  .brand .sub{font-family:'Courier Prime', monospace; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-top:2px;}
+  .streak{font-family:'Courier Prime', monospace; font-size:12px; letter-spacing:1px; text-align:right; color:var(--ink-soft);}
+  .streak b{color:var(--ink); font-size:20px; display:block; font-family:'Playfair Display',serif;}
+
+  .progress{display:flex; gap:8px; margin:0 0 14px; justify-content:center;}
+  .dot{width:9px; height:9px; border-radius:50%; border:1.5px solid var(--ink); background:transparent;}
+  .dot.done{background:var(--ink);}
+  .dot.active{background:var(--gold-bright); border-color:var(--gold-bright);}
+
+  .clue-card{background:linear-gradient(180deg, #f7f0dd, var(--parchment-deep)); border:1px solid #8d7a52; border-radius:2px; box-shadow:0 10px 24px var(--paper-shadow); padding:22px 24px; margin-bottom:18px; position:relative;}
+  .clue-card::before{content:'';position:absolute;inset:6px;border:1px solid rgba(36,48,74,0.15);pointer-events:none;}
+  .clue-meta{display:flex; justify-content:space-between; align-items:baseline; font-family:'Courier Prime', monospace; font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--gold); margin-bottom:10px;}
+  .clue-numeral{font-family:'Playfair Display', serif; font-style:italic; font-weight:700; font-size:15px; color:var(--ink);}
+  .clue-text{font-size:19px; line-height:1.55; color:var(--ink);}
+  .clue-text .year{color:var(--gold); font-weight:600;}
+  .instruction{margin-top:10px; font-family:'Courier Prime', monospace; font-size:12px; color:var(--ink-soft); letter-spacing:0.5px;}
+
+  /* Map */
+  .map-frame{
+    position:relative;
+    border:1px solid #8d7a52;
+    box-shadow:0 10px 24px var(--paper-shadow);
+    border-radius:6px;
+    overflow:hidden;
+    aspect-ratio: 4 / 3;
+    background:#0b1424;
+  }
+  #leafletMap{width:100%; height:100%; background:#0b1424; filter: saturate(0.55) contrast(1.05) brightness(0.97);}
+  .leaflet-container{cursor:crosshair !important;}
+  .leaflet-control-attribution{
+    font-family:'Courier Prime', monospace !important;
+    font-size:9px !important;
+    background:rgba(5,7,13,0.55) !important;
+    color:rgba(239,230,211,0.7) !important;
+  }
+  .leaflet-control-attribution a{color:rgba(239,230,211,0.85) !important;}
+  .leaflet-control-zoom a{
+    background:rgba(5,7,13,0.75) !important;
+    color:var(--parchment) !important;
+    border-color:rgba(239,230,211,0.2) !important;
+  }
+
+  .globe-hint{
+    position:absolute; left:0; right:0; bottom:0;
+    padding:8px 14px;
+    font-family:'Courier Prime', monospace;
+    font-size:10.5px;
+    letter-spacing:0.8px;
+    color:rgba(239,230,211,0.75);
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,0.55));
+    text-align:center;
+    pointer-events:none;
+    z-index:500;
+  }
+  .globe-legend{
+    position:absolute; top:10px; right:12px;
+    display:flex; flex-direction:column; gap:5px;
+    font-family:'Courier Prime', monospace;
+    font-size:10px;
+    color:rgba(239,230,211,0.9);
+    pointer-events:none;
+    text-align:right;
+    z-index:500;
+  }
+  .globe-legend span{display:inline-flex; align-items:center; gap:5px; justify-content:flex-end;}
+  .swatch{width:8px;height:8px;border-radius:50%; display:inline-block;}
+
+  .loading-overlay{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+    background:#05070d;
+    color:rgba(239,230,211,0.85);
+    font-family:'Courier Prime', monospace;
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    transition:opacity 0.4s ease;
+    z-index:600;
+  }
+  .loading-overlay.hidden{opacity:0; pointer-events:none;}
+  .spinner{width:34px; height:34px; border-radius:50%; border:2px solid rgba(212,162,78,0.25); border-top-color: var(--gold-bright); animation: spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .map-caption{font-family:'Courier Prime', monospace; font-size:11px; color:var(--ink-soft); text-align:center; padding:8px 4px 0; letter-spacing:0.5px;}
+
+  /* Custom Leaflet pin markers */
+  .geo-pin{position:relative; width:26px; height:36px; transform:translate(-50%,-100%);}
+  .geo-pin .stem{position:absolute; left:50%; top:14px; width:2px; height:20px; background:currentColor; transform:translateX(-50%); opacity:0.85;}
+  .geo-pin .head{position:absolute; left:50%; top:0; width:16px; height:16px; border-radius:50% 50% 50% 0; background:currentColor; transform:translate(-50%,0) rotate(-45deg); box-shadow:0 0 0 2px rgba(239,230,211,0.9);}
+  .geo-pin.drop{animation: pinDrop 0.5s cubic-bezier(.34,1.56,.64,1) both;}
+  @keyframes pinDrop{
+    0%{transform:translate(-50%,-100%) translateY(-40px); opacity:0;}
+    60%{transform:translate(-50%,-100%) translateY(6px); opacity:1;}
+    100%{transform:translate(-50%,-100%) translateY(0); opacity:1;}
+  }
+  .pulse-wrap{position:relative; width:1px; height:1px;}
+  .pulse-ring{
+    position:absolute; left:0; top:0;
+    width:16px; height:16px;
+    margin-left:-8px; margin-top:-8px;
+    border-radius:50%;
+    border:2px solid var(--actual);
+    animation: pulseOut 1.4s ease-out infinite;
+  }
+  .pulse-ring.delay1{animation-delay:0.45s;}
+  .pulse-ring.delay2{animation-delay:0.9s;}
+  @keyframes pulseOut{
+    0%{transform:scale(0.6); opacity:0.9;}
+    100%{transform:scale(6.5); opacity:0;}
+  }
+
+  .result-panel{display:none; background:var(--ink); color:var(--parchment); padding:20px 24px; margin-top:16px; border-radius:2px; box-shadow:0 10px 24px var(--paper-shadow);}
+  .result-panel.show{display:block;}
+  .result-top{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;}
+  .result-score{font-family:'Playfair Display', serif; font-weight:900; font-size:36px; color:var(--gold-bright);}
+  .result-score .of{font-size:16px; color:var(--parchment); opacity:0.7; font-family:'Courier Prime',monospace;}
+  .result-distance{font-family:'Courier Prime', monospace; font-size:13px; letter-spacing:0.5px; color:var(--parchment); opacity:0.85;}
+  .result-place{font-family:'Playfair Display', serif; font-style:italic; font-size:20px; margin:6px 0 10px; color:var(--parchment);}
+  .result-explain{font-size:15px; line-height:1.6; color:var(--parchment); opacity:0.92; border-top:1px solid rgba(239,230,211,0.25); padding-top:12px;}
+
+  button.next-btn{margin-top:16px; font-family:'Courier Prime', monospace; letter-spacing:1px; text-transform:uppercase; font-size:13px; background:var(--gold-bright); color:var(--ink); border:none; padding:11px 20px; cursor:pointer; border-radius:1px; font-weight:700;}
+  button.next-btn:hover{background:var(--gold);}
+  button.next-btn:disabled{opacity:0.5; cursor:default;}
+
+  .final{display:none; text-align:center; background:linear-gradient(180deg, #f7f0dd, var(--parchment-deep)); border:1px solid #8d7a52; box-shadow:0 10px 24px var(--paper-shadow); padding:36px 24px; border-radius:2px;}
+  .final.show{display:block;}
+  .final h2{font-family:'Playfair Display', serif; font-weight:900; font-size:30px; margin:0 0 6px;}
+  .final .final-sub{font-family:'Courier Prime', monospace; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:22px;}
+  .final-total{font-family:'Playfair Display', serif; font-weight:900; font-size:56px; color:var(--ink); line-height:1;}
+  .final-total .of{font-size:20px; font-family:'Courier Prime',monospace; color:var(--ink-soft); font-weight:400;}
+  .final-emoji{font-size:26px; letter-spacing:6px; margin:14px 0 22px;}
+  .final-table{width:100%; border-collapse:collapse; font-family:'Courier Prime', monospace; font-size:13px; text-align:left; margin-bottom:22px;}
+  .final-table th, .final-table td{border-bottom:1px solid rgba(36,48,74,0.2); padding:8px 6px;}
+  .final-table th{text-transform:uppercase; letter-spacing:1px; font-size:11px; color:var(--ink-soft);}
+  .share-box{font-family:'Courier Prime', monospace; background:var(--ink); color:var(--parchment); padding:14px; font-size:13px; white-space:pre-wrap; text-align:left; border-radius:2px; margin-bottom:18px; line-height:1.6;}
+  .btn-row{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  button.secondary-btn{font-family:'Courier Prime', monospace; letter-spacing:1px; text-transform:uppercase; font-size:13px; background:transparent; color:var(--ink); border:1.5px solid var(--ink); padding:10px 18px; cursor:pointer; border-radius:1px; font-weight:700;}
+  button.secondary-btn:hover{background:var(--ink); color:var(--parchment);}
+
+  footer{text-align:center; font-family:'Courier Prime', monospace; font-size:11px; color:var(--ink-soft); margin-top:30px; letter-spacing:0.5px;}
+
+  @media (max-width:600px){
+    .clue-text{font-size:17px;}
+    .result-score{font-size:28px;}
+    .final-total{font-size:44px;}
+    .map-frame{aspect-ratio: 3 / 4;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <svg class="compass" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="#24304a" stroke-width="2"/>
+        <circle cx="50" cy="50" r="3" fill="#b8863b"/>
+        <path d="M50 8 L58 50 L50 92 L42 50 Z" fill="#24304a"/>
+        <path d="M8 50 L50 42 L92 50 L50 58 Z" fill="#b8863b" opacity="0.85"/>
+        <text x="50" y="20" text-anchor="middle" font-family="Courier Prime, monospace" font-size="9" fill="#24304a">N</text>
+      </svg>
+      <div>
+        <h1>GeoHistory <span style="font-size:0.5em; vertical-align:middle; color:var(--gold);">USA</span></h1>
+        <div class="sub">Five clues · one map · continental U.S. only</div>
+      </div>
+    </div>
+    <div class="streak">Today's Round<b id="roundLabel">I – V</b></div>
+  </header>
+
+  <div class="progress" id="progress"></div>
+
+  <div class="clue-card" id="clueCard">
+    <div class="clue-meta">
+      <span class="clue-numeral" id="clueNumeral">Clue I</span>
+      <span id="clueMultiplier">×1 SCORING</span>
+    </div>
+    <div class="clue-text" id="clueText">Loading…</div>
+    <div class="instruction" id="instruction">Pan and zoom the map, then tap the spot where you think this happened.</div>
+  </div>
+
+  <div class="map-frame" id="mapFrame">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div>Fetching satellite imagery…</div>
+    </div>
+    <div id="leafletMap"></div>
+    <div class="globe-legend">
+      <span><span class="swatch" style="background:var(--guess)"></span>your guess</span>
+      <span><span class="swatch" style="background:var(--actual)"></span>true location</span>
+    </div>
+    <div class="globe-hint">DRAG TO PAN · SCROLL / PINCH TO ZOOM · TAP TO PLACE PIN</div>
+  </div>
+  <div class="map-caption">Satellite imagery — continental United States only</div>
+
+  <div class="result-panel" id="resultPanel">
+    <div class="result-top">
+      <div class="result-score" id="resultScore">0 <span class="of">/ 100</span></div>
+      <div class="result-distance" id="resultDistance">— mi from target</div>
+    </div>
+    <div class="result-place" id="resultPlace"></div>
+    <div class="result-explain" id="resultExplain"></div>
+    <button class="next-btn" id="nextBtn">Next Clue →</button>
+  </div>
+
+  <div class="final" id="finalPanel">
+    <h2>Round Complete</h2>
+    <div class="final-sub">Your history &amp; geography verdict</div>
+    <div class="final-total"><span id="finalTotal">0</span><span class="of"> / <span id="finalMax">0</span></span></div>
+    <div class="final-emoji" id="finalEmoji"></div>
+    <table class="final-table">
+      <thead><tr><th>Clue</th><th>Event</th><th>Score</th><th>Distance</th></tr></thead>
+      <tbody id="finalTableBody"></tbody>
+    </table>
+    <div class="share-box" id="shareBox"></div>
+    <div class="btn-row">
+      <button class="secondary-btn" id="copyBtn">Copy Result</button>
+      <button class="secondary-btn" id="playAgainBtn">Play Again</button>
+    </div>
+  </div>
+
+  <footer>GeoHistory is a fan-made prototype in the style of MapTap &amp; GeoSports — built for history buffs, not (yet) an official daily release. Satellite imagery © Esri, Maxar, Earthstar Geographics &amp; the GIS User Community.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // Question bank — continental USA only
+  // ============================================================
+  const QUESTIONS = [
+    {
+      numeral: "I",
+      multiplier: 1,
+      text: `In <span class="year">1865</span>, a stage actor shot the President while he watched a play at this theatre, just days after the Confederacy's largest army had surrendered.`,
+      place: "Washington, D.C. (Ford's Theatre)",
+      lat: 38.8970, lon: -77.0272,
+      explain: `John Wilkes Booth shot President Abraham Lincoln at Ford's Theatre on the night of April 14, 1865, five days after General Lee's surrender at Appomattox effectively ended the Civil War. Lincoln died the following morning, becoming the first U.S. president to be assassinated.`
+    },
+    {
+      numeral: "II",
+      multiplier: 1,
+      text: `Union and Confederate forces clashed near this creek in <span class="year">1862</span> in the single bloodiest day of combat in American history, with roughly 22,000 combined casualties.`,
+      place: "Sharpsburg, Maryland (Antietam)",
+      lat: 39.4757, lon: -77.7716,
+      explain: `The Battle of Antietam ended General Lee's first invasion of the North and gave President Lincoln the political opening to issue the preliminary Emancipation Proclamation. No single day of the Civil War produced more casualties.`
+    },
+    {
+      numeral: "III",
+      multiplier: 1.5,
+      text: `English settlers established the first permanent English colony in North America at this riverside outpost in <span class="year">1607</span>, naming it after their king.`,
+      place: "Jamestown, Virginia",
+      lat: 37.2093, lon: -76.7791,
+      explain: `Jamestown was founded by the Virginia Company and struggled through disease, conflict, and famine in its early years — including a period settlers called "the starving time." It nonetheless became the first lasting English foothold in North America, more than a decade before Plymouth.`
+    },
+    {
+      numeral: "IV",
+      multiplier: 2,
+      text: `U.S. cavalry troops killed hundreds of Lakota men, women, and children near this creek in <span class="year">1890</span>, in what is often cited as the last major armed conflict of the Plains wars.`,
+      place: "Wounded Knee, South Dakota",
+      lat: 43.1477, lon: -102.3565,
+      explain: `The Wounded Knee Massacre began after a confrontation while the U.S. Army was disarming a band of Lakota. Estimates of the dead range from roughly 150 to 300, most of them unarmed. It marked a brutal end to decades of U.S. military conflict with Plains nations.`
+    },
+    {
+      numeral: "V",
+      multiplier: 3,
+      text: `Confederate forces opened fire on a federal fort in this harbor in <span class="year">1861</span> — the first shots of the Civil War.`,
+      place: "Charleston Harbor, South Carolina (Fort Sumter)",
+      lat: 32.7523, lon: -79.8748,
+      explain: `Confederate batteries bombarded the Union-held Fort Sumter for 34 hours until its garrison surrendered. No one was killed in the exchange itself, but the attack triggered President Lincoln's call for troops and the start of four years of civil war.`
+    }
+  ];
+
+  const MAX_SCORE = QUESTIONS.reduce((sum, q) => sum + 100 * q.multiplier, 0);
+
+  // ============================================================
+  // Scoring — tuned for country-scale distances (miles)
+  // ============================================================
+  function haversineMiles(lat1, lon1, lat2, lon2){
+    const R = 3958.8;
+    const dLat = (lat2-lat1) * Math.PI/180;
+    const dLon = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R*c;
+  }
+  function scoreFromDistance(miles){
+    const s = 100 * Math.exp(-miles / 220);
+    return Math.max(0, Math.round(s));
+  }
+
+  // ============================================================
+  // Map setup — Leaflet + Esri World Imagery, locked to CONUS
+  // ============================================================
+  const CONUS_BOUNDS = L.latLngBounds([24.0, -126.0], [50.0, -65.5]);
+  const PAD_BOUNDS = L.latLngBounds([18.0, -132.0], [55.0, -59.0]);
+
+  const map = L.map('leafletMap', {
+    zoomControl: true,
+    attributionControl: true,
+    maxBounds: PAD_BOUNDS,
+    maxBoundsViscosity: 1.0,
+    worldCopyJump: false,
+    minZoom: 3,
+    maxZoom: 18
+  });
+
+  const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+    noWrap: true,
+    maxNativeZoom: 19
+  }).addTo(map);
+
+  map.fitBounds(CONUS_BOUNDS, { animate:false });
+  map.setMinZoom(map.getZoom());
+
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  let firstLoadDone = false;
+  satLayer.on('load', function(){
+    if(!firstLoadDone){
+      firstLoadDone = true;
+      loadingOverlay.classList.add('hidden');
+    }
+  });
+  // safety fallback in case 'load' never fires (e.g. tiles cached instantly)
+  setTimeout(()=>{ loadingOverlay.classList.add('hidden'); }, 3500);
+
+  let guessMarker = null, actualMarker = null, connectLine = null;
+
+  function pinIcon(colorVar){
+    return L.divIcon({
+      className: '',
+      html: `<div class="geo-pin drop" style="color:var(${colorVar})"><div class="stem"></div><div class="head"></div></div>`,
+      iconSize: [26,36],
+      iconAnchor: [13,36]
+    });
+  }
+  function pulseIcon(){
+    return L.divIcon({
+      className: '',
+      html: `<div class="pulse-wrap">
+               <div class="pulse-ring"></div>
+               <div class="pulse-ring delay1"></div>
+               <div class="pulse-ring delay2"></div>
+             </div>`,
+      iconSize: [1,1],
+      iconAnchor: [0,0]
+    });
+  }
+
+  function clearMarkers(){
+    if(guessMarker){ map.removeLayer(guessMarker); guessMarker = null; }
+    if(actualMarker){ map.removeLayer(actualMarker); actualMarker = null; }
+    if(connectLine){ map.removeLayer(connectLine); connectLine = null; }
+  }
+
+  function registerGuess(lat, lon){
+    if(!awaitingClick) return;
+    awaitingClick = false;
+    const q = QUESTIONS[idx];
+    const dist = haversineMiles(lat, lon, q.lat, q.lon);
+    const rawScore = scoreFromDistance(dist);
+    const finalScoreForQ = Math.round(rawScore * q.multiplier);
+    results.push({ score: finalScoreForQ, rawScore, distance: dist, place: q.place });
+
+    guessMarker = L.marker([lat, lon], { icon: pinIcon('--guess'), interactive:false }).addTo(map);
+    instruction.textContent = 'Revealing the true location…';
+
+    setTimeout(()=>{
+      actualMarker = L.marker([q.lat, q.lon], { icon: pinIcon('--actual'), interactive:false }).addTo(map);
+      L.marker([q.lat, q.lon], { icon: pulseIcon(), interactive:false }).addTo(map);
+
+      connectLine = L.polyline([[lat,lon],[q.lat,q.lon]], {
+        color:'#f4e6c8', weight:2, dashArray:'5,7', opacity:0.85
+      }).addTo(map);
+
+      const fitB = L.latLngBounds([lat,lon],[q.lat,q.lon]);
+      map.flyToBounds(fitB, { padding:[60,60], duration:1.1, maxZoom:15 });
+
+      resultScore.innerHTML = finalScoreForQ + ' <span class="of">/ ' + Math.round(100*q.multiplier) + '</span>';
+      resultDistance.textContent = Math.round(dist).toLocaleString() + ' mi from target';
+      resultPlace.textContent = q.place;
+      resultExplain.textContent = q.explain;
+      resultPanel.classList.add('show');
+      instruction.textContent = 'Answer locked in — review the result below.';
+    }, 450);
+  }
+
+  map.on('click', function(e){
+    registerGuess(e.latlng.lat, e.latlng.lng);
+  });
+
+  // ============================================================
+  // Game state / flow
+  // ============================================================
+  let idx = 0;
+  let results = [];
+  let awaitingClick = true;
+
+  const clueNumeral = document.getElementById('clueNumeral');
+  const clueMultiplier = document.getElementById('clueMultiplier');
+  const clueText = document.getElementById('clueText');
+  const instruction = document.getElementById('instruction');
+  const resultPanel = document.getElementById('resultPanel');
+  const resultScore = document.getElementById('resultScore');
+  const resultDistance = document.getElementById('resultDistance');
+  const resultPlace = document.getElementById('resultPlace');
+  const resultExplain = document.getElementById('resultExplain');
+  const nextBtn = document.getElementById('nextBtn');
+  const progress = document.getElementById('progress');
+  const finalPanel = document.getElementById('finalPanel');
+  const clueCard = document.getElementById('clueCard');
+  const mapFrameEl = document.getElementById('mapFrame');
+  const roundLabel = document.getElementById('roundLabel');
+
+  function buildProgress(){
+    progress.innerHTML = '';
+    QUESTIONS.forEach((q,i) => {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i < idx ? ' done' : (i===idx ? ' active':''));
+      progress.appendChild(d);
+    });
+  }
+
+  function loadQuestion(){
+    awaitingClick = true;
+    nextBtn.disabled = false;
+    resultPanel.classList.remove('show');
+    clearMarkers();
+    map.flyToBounds(CONUS_BOUNDS, { animate:true, duration:0.9, padding:[10,10] });
+    const q = QUESTIONS[idx];
+    clueNumeral.textContent = 'Clue ' + q.numeral;
+    clueMultiplier.textContent = '×' + q.multiplier + ' SCORING';
+    clueText.innerHTML = q.text;
+    instruction.textContent = 'Pan and zoom the map, then tap the spot where you think this happened.';
+    buildProgress();
+  }
+
+  nextBtn.addEventListener('click', function(){
+    idx++;
+    if(idx >= QUESTIONS.length){
+      showFinal();
+    } else {
+      loadQuestion();
+    }
+  });
+
+  function emojiForScore(pct){
+    if(pct >= 90) return '🏆';
+    if(pct >= 70) return '🟢';
+    if(pct >= 45) return '🟡';
+    if(pct >= 20) return '🟠';
+    return '🔴';
+  }
+  function ordinal(n){
+    const s = ["th","st","nd","rd"];
+    const v = n % 100;
+    return n + (s[(v-20)%10] || s[v] || s[0]);
+  }
+  function flavorLine(pct){
+    if(pct >= 90) return "Flawless run through American history.";
+    if(pct >= 70) return "Solid history run today.";
+    if(pct >= 45) return "Decent showing — a few close calls.";
+    if(pct >= 20) return "History humbled me today.";
+    return "Rough round — back to the books.";
+  }
+
+  function showFinal(){
+    clueCard.style.display = 'none';
+    mapFrameEl.style.display = 'none';
+    document.querySelector('.map-caption').style.display = 'none';
+    resultPanel.classList.remove('show');
+    progress.style.display = 'none';
+
+    const total = results.reduce((s,r)=>s+r.score,0);
+    document.getElementById('finalTotal').textContent = total;
+    document.getElementById('finalMax').textContent = Math.round(MAX_SCORE);
+
+    let emojiLine = '';
+    const tbody = document.getElementById('finalTableBody');
+    tbody.innerHTML = '';
+    QUESTIONS.forEach((q,i)=>{
+      const r = results[i];
+      emojiLine += emojiForScore(r.rawScore) + ' ';
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + q.numeral + '</td><td>' + q.place + '</td><td>' + r.score + '/' + Math.round(100*q.multiplier) + '</td><td>' + Math.round(r.distance).toLocaleString() + ' mi</td>';
+      tbody.appendChild(tr);
+    });
+    document.getElementById('finalEmoji').textContent = emojiLine.trim();
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-US', { month: 'long' }) + ' ' + ordinal(today.getDate());
+    const maxRounded = Math.round(MAX_SCORE);
+    const overallPct = (total / maxRounded) * 100;
+
+    const shareLines = [
+      `GeoHistory USA · ${dateStr}`,
+      `${total.toLocaleString()} / ${maxRounded.toLocaleString()}`,
+      emojiLine.trim(),
+      'geohistory.app',
+      flavorLine(overallPct)
+    ];
+    const shareText = shareLines.join('\n');
+    document.getElementById('shareBox').textContent = shareText;
+    window.__shareText = shareText;
+
+    finalPanel.classList.add('show');
+  }
+
+  const copyBtn = document.getElementById('copyBtn');
+  copyBtn.addEventListener('click', function(){
+    const text = window.__shareText || '';
+    if(!text) return;
+    function showCopied(){
+      const original = copyBtn.textContent;
+      copyBtn.textContent = 'Copied ✓';
+      setTimeout(()=>{ copyBtn.textContent = original; }, 1600);
+    }
+    if(navigator.share){
+      navigator.share({ text }).catch(()=>{});
+      return;
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(showCopied).catch(()=>{ fallbackCopy(text, showCopied); });
+    } else {
+      fallbackCopy(text, showCopied);
+    }
+  });
+  function fallbackCopy(text, onDone){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    if(onDone) onDone();
+  }
+
+  document.getElementById('playAgainBtn').addEventListener('click', function(){
+    idx = 0; results = [];
+    finalPanel.classList.remove('show');
+    clueCard.style.display = '';
+    mapFrameEl.style.display = '';
+    document.querySelector('.map-caption').style.display = '';
+    progress.style.display = '';
+    clearMarkers();
+    loadQuestion();
+  });
+
+  roundLabel.textContent = 'I – ' + QUESTIONS[QUESTIONS.length-1].numeral;
+  loadQuestion();
+})();
+</script>
+</body>
+</html>
