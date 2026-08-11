@@ -133,21 +133,6 @@
     60%{transform:translate(-50%,-100%) translateY(6px); opacity:1;}
     100%{transform:translate(-50%,-100%) translateY(0); opacity:1;}
   }
-  .pulse-wrap{position:relative; width:1px; height:1px;}
-  .pulse-ring{
-    position:absolute; left:0; top:0;
-    width:16px; height:16px;
-    margin-left:-8px; margin-top:-8px;
-    border-radius:50%;
-    border:2px solid var(--actual);
-    animation: pulseOut 1.4s ease-out infinite;
-  }
-  .pulse-ring.delay1{animation-delay:0.45s;}
-  .pulse-ring.delay2{animation-delay:0.9s;}
-  @keyframes pulseOut{
-    0%{transform:scale(0.6); opacity:0.9;}
-    100%{transform:scale(6.5); opacity:0;}
-  }
 
   .result-panel{display:none; background:var(--ink); color:var(--parchment); padding:20px 24px; margin-top:16px; border-radius:2px; box-shadow:0 10px 24px var(--paper-shadow);}
   .result-panel.show{display:block;}
@@ -273,42 +258,42 @@
     {
       numeral: "I",
       multiplier: 1,
-      text: `In <span class="year">1865</span>, a stage actor shot the President while he watched a play at this theatre, just days after the Confederacy's largest army had surrendered.`,
-      place: "Washington, D.C. (Ford's Theatre)",
-      lat: 38.8970, lon: -77.0272,
-      explain: `John Wilkes Booth shot President Abraham Lincoln at Ford's Theatre on the night of April 14, 1865, five days after General Lee's surrender at Appomattox effectively ended the Civil War. Lincoln died the following morning, becoming the first U.S. president to be assassinated.`
+      text: `British forces under a general surrendered here in <span class="year">1781</span> after being trapped by combined American and French troops, effectively ending major fighting in the Revolutionary War.`,
+      place: "Yorktown, Virginia",
+      lat: 37.2384, lon: -76.5074,
+      explain: `General Cornwallis's surrender at Yorktown, with American forces under Washington and French troops and ships under Rochambeau and de Grasse, marked the last major battle of the Revolutionary War. Peace negotiations followed, culminating in the Treaty of Paris in 1783.`
     },
     {
       numeral: "II",
       multiplier: 1,
-      text: `Union and Confederate forces clashed near this creek in <span class="year">1862</span> in the single bloodiest day of combat in American history, with roughly 22,000 combined casualties.`,
-      place: "Sharpsburg, Maryland (Antietam)",
-      lat: 39.4757, lon: -77.7716,
-      explain: `The Battle of Antietam ended General Lee's first invasion of the North and gave President Lincoln the political opening to issue the preliminary Emancipation Proclamation. No single day of the Civil War produced more casualties.`
+      text: `A Union general's army set fire to this city in <span class="year">1864</span> before beginning a destructive march toward the sea, aiming to break the Confederacy's capacity and will to keep fighting.`,
+      place: "Atlanta, Georgia",
+      lat: 33.7490, lon: -84.3880,
+      explain: `General William Tecumseh Sherman ordered much of Atlanta burned after capturing it, then led roughly 60,000 troops on his "March to the Sea," destroying railroads, factories, and farms along the way. The campaign is often cited as an early example of total war.`
     },
     {
       numeral: "III",
       multiplier: 1.5,
-      text: `English settlers established the first permanent English colony in North America at this riverside outpost in <span class="year">1607</span>, naming it after their king.`,
-      place: "Jamestown, Virginia",
-      lat: 37.2093, lon: -76.7791,
-      explain: `Jamestown was founded by the Virginia Company and struggled through disease, conflict, and famine in its early years — including a period settlers called "the starving time." It nonetheless became the first lasting English foothold in North America, more than a decade before Plymouth.`
+      text: `Hijacked airliners struck two towers in this city's financial district on a September morning in <span class="year">2001</span>, in the deadliest terrorist attack in American history.`,
+      place: "New York City (World Trade Center)",
+      lat: 40.7115, lon: -74.0134,
+      explain: `The September 11 attacks killed nearly 3,000 people across three sites, including the World Trade Center towers, which collapsed after being struck by two hijacked planes. The attacks reshaped American foreign and domestic policy for decades afterward.`
     },
     {
       numeral: "IV",
       multiplier: 2,
-      text: `U.S. cavalry troops killed hundreds of Lakota men, women, and children near this creek in <span class="year">1890</span>, in what is often cited as the last major armed conflict of the Plains wars.`,
-      place: "Wounded Knee, South Dakota",
-      lat: 43.1477, lon: -102.3565,
-      explain: `The Wounded Knee Massacre began after a confrontation while the U.S. Army was disarming a band of Lakota. Estimates of the dead range from roughly 150 to 300, most of them unarmed. It marked a brutal end to decades of U.S. military conflict with Plains nations.`
+      text: `A space shuttle broke apart shortly after liftoff from this coastal launch site in <span class="year">1986</span>, killing all seven crew members just over a minute into the flight.`,
+      place: "Cape Canaveral, Florida",
+      lat: 28.5721, lon: -80.6480,
+      explain: `The Space Shuttle Challenger disaster was caused by the failure of an O-ring seal in cold weather, leading to a catastrophic structural failure shortly after launch. The crew included Christa McAuliffe, who would have been the first teacher in space, and the disaster led to a 32-month grounding of the shuttle program.`
     },
     {
       numeral: "V",
       multiplier: 3,
-      text: `Confederate forces opened fire on a federal fort in this harbor in <span class="year">1861</span> — the first shots of the Civil War.`,
-      place: "Charleston Harbor, South Carolina (Fort Sumter)",
-      lat: 32.7523, lon: -79.8748,
-      explain: `Confederate batteries bombarded the Union-held Fort Sumter for 34 hours until its garrison surrendered. No one was killed in the exchange itself, but the attack triggered President Lincoln's call for troops and the start of four years of civil war.`
+      text: `Colonial militia inflicted heavy casualties on British troops storming this hill in <span class="year">1775</span>, in one of the first major battles of the Revolutionary War.`,
+      place: "Charlestown, Massachusetts (Bunker Hill)",
+      lat: 42.3763, lon: -71.0611,
+      explain: `Despite ultimately losing the position, colonial forces inflicted heavy casualties on the attacking British regulars, proving that untrained militia could stand against professional soldiers. The battle is remembered for the (possibly apocryphal) order "don't fire until you see the whites of their eyes."`
     }
   ];
 
@@ -376,19 +361,6 @@
       iconAnchor: [13,36]
     });
   }
-  function pulseIcon(){
-    return L.divIcon({
-      className: '',
-      html: `<div class="pulse-wrap">
-               <div class="pulse-ring"></div>
-               <div class="pulse-ring delay1"></div>
-               <div class="pulse-ring delay2"></div>
-             </div>`,
-      iconSize: [1,1],
-      iconAnchor: [0,0]
-    });
-  }
-
   function clearMarkers(){
     if(guessMarker){ map.removeLayer(guessMarker); guessMarker = null; }
     if(actualMarker){ map.removeLayer(actualMarker); actualMarker = null; }
@@ -409,7 +381,6 @@
 
     setTimeout(()=>{
       actualMarker = L.marker([q.lat, q.lon], { icon: pinIcon('--actual'), interactive:false }).addTo(map);
-      L.marker([q.lat, q.lon], { icon: pulseIcon(), interactive:false }).addTo(map);
 
       connectLine = L.polyline([[lat,lon],[q.lat,q.lon]], {
         color:'#f4e6c8', weight:2, dashArray:'5,7', opacity:0.85
